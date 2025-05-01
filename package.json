@@ -1,33 +1,44 @@
 {
   "name": "@poilabs-dev/analysis-sdk-plugin",
   "version": "1.0.34",
-  "description": "Expo Config Plugin for Poilabs Analysis SDK",
+  "description": "Official Expo Config Plugin for integrating the Poilabs Analysis SDK",
   "main": "index.js",
   "types": "index.d.ts",
-  "expo": {
-    "plugin": "./app.plugin.js"
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "github:poilabs-dev/analysis-sdk-plugin"
+  },
+  "keywords": [
+    "expo",
+    "config-plugin",
+    "poilabs",
+    "beacons",
+    "indoor-positioning",
+    "analysis"
+  ],
+  "author": "Poilabs",
+  "license": "MIT",
+  "peerDependencies": {
+    "expo": ">=47.0.0",
+    "expo-location": ">=15.0.0",
+    "expo-device": ">=5.0.0",
+    "react": "*",
+    "react-native": "*"
+  },
+  "devDependencies": {
+    "@expo/config-plugins": "^6.0.0",
+    "typescript": "^4.9.4"
   },
   "files": [
     "app.plugin.js",
-    "index.js",
     "index.d.ts",
+    "index.js",
     "permission.js",
-    "templates/",
-    "README.md"
-  ],
-  "keywords": [
-    "expo",
-    "expo-plugin",
-    "config-plugin",
-    "poilabs",
-    "analysis-sdk"
-  ],
-  "license": "MIT",
-  "peerDependencies": {
-    "expo": ">=48.0.0",
-    "expo-location": ">=15.0.0",
-    "expo-device": ">=5.0.0",
-    "react": ">=17.0.0",
-    "react-native": ">=0.71.0"
-  }
+    "src/**/*",
+    "plugin/**/*"
+  ]
 }
