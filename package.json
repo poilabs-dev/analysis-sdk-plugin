@@ -1,16 +1,12 @@
 {
   "name": "@poilabs-dev/analysis-sdk-plugin",
-  "version": "1.0.34",
+  "version": "1.0.35",
   "description": "Official Expo Config Plugin for integrating the Poilabs Analysis SDK",
   "main": "index.js",
   "types": "index.d.ts",
-  "scripts": {
-    "build": "tsc",
-    "prepublishOnly": "npm run build"
-  },
   "repository": {
     "type": "git",
-    "url": "github:poilabs-dev/analysis-sdk-plugin"
+    "url": "git+https://github.com/poilabs-dev/analysis-sdk-plugin.git"
   },
   "keywords": [
     "expo",
