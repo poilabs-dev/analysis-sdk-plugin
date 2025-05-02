@@ -11,73 +11,94 @@ const TAG = "MainActivity";
 export async function askRuntimePermissionsIfNeeded() {
   try {
     if (Platform.OS === "ios") {
-      return true;
-    }
-
-    if (Platform.OS !== "android") {
+      // iOS permissions
       const { status: fineStatus } =
         await Location.requestForegroundPermissionsAsync();
-      console.log(
-        `[${TAG}] Foreground location permission status: ${fineStatus}`
-      );
+
       const { status: backgroundStatus } =
         await Location.requestBackgroundPermissionsAsync();
-      console.log(
-        `[${TAG}] Background location permission status: ${backgroundStatus}`
-      );
-      return true;
+
+      return fineStatus === "granted" && backgroundStatus === "granted";
+    } else if (Platform.OS === "android") {
+      // Android permissions
+      const sdk = parseInt(Platform.Version, 10);
+      let allPermissionsGranted = true;
+
+      // Android 10+ (API 29 and above)
+      if (sdk >= 29) {
+        // Request fine location first
+        let res = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          {
+            title: "Location Permission",
+            message:
+              "We need location permission to detect beacon devices near you.",
+            buttonPositive: "OK",
+            buttonNegative: "Cancel",
+          }
+        );
+        console.log(`[${TAG}] ACCESS_FINE_LOCATION: ${res}`);
+
+        if (res !== PermissionsAndroid.RESULTS.GRANTED) {
+          allPermissionsGranted = false;
+        }
+
+        // Then request background location
+        res = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION,
+          {
+            title: "Background Location Permission",
+            message:
+              "We need location permission for beacon scanning while the app is in the background.",
+            buttonPositive: "OK",
+            buttonNegative: "Cancel",
+          }
+        );
+        console.log(`[${TAG}] ACCESS_BACKGROUND_LOCATION: ${res}`);
+
+        if (res !== PermissionsAndroid.RESULTS.GRANTED) {
+          allPermissionsGranted = false;
+        }
+      } else {
+        // Android 9 and below: coarse location
+        const res = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
+          {
+            title: "Location Permission",
+            message:
+              "We need location permission to detect beacon devices near you.",
+            buttonPositive: "OK",
+            buttonNegative: "Cancel",
+          }
+        );
+
+        if (res !== PermissionsAndroid.RESULTS.GRANTED) {
+          allPermissionsGranted = false;
+        }
+      }
+
+      // Android 12+ (API 31 and above): Bluetooth connect and scan
+      if (sdk >= 31) {
+        const results = await PermissionsAndroid.requestMultiple([
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+          PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+        ]);
+
+        if (
+          results[PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT] !==
+            PermissionsAndroid.RESULTS.GRANTED ||
+          results[PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN] !==
+            PermissionsAndroid.RESULTS.GRANTED
+        ) {
+          allPermissionsGranted = false;
+        }
+      }
+
+      return allPermissionsGranted;
     }
 
-    const sdk = parseInt(Platform.Version, 10);
-
-    // Android 10+ (API 29 and above)
-    if (sdk >= 29) {
-      let res = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-        {
-          title: "Location Permission",
-          message:
-            "We need location permission to detect beacon devices near you.",
-          buttonPositive: "OK",
-          buttonNegative: "Cancel",
-        }
-      );
-      console.log(`[${TAG}] ACCESS_FINE_LOCATION: ${res}`);
-
-      res = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION,
-        {
-          title: "Background Location Permission",
-          message:
-            "We need location permission for beacon scanning while the app is in the background.",
-          buttonPositive: "OK",
-          buttonNegative: "Cancel",
-        }
-      );
-      console.log(`[${TAG}] ACCESS_BACKGROUND_LOCATION: ${res}`);
-    } else {
-      // Android 9 and below: coarse location
-      const res = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
-        {
-          title: "Location Permission",
-          message:
-            "We need location permission to detect beacon devices near you.",
-          buttonPositive: "OK",
-          buttonNegative: "Cancel",
-        }
-      );
-    }
-
-    // Android 12+ (API 31 and above): Bluetooth connect and scan
-    if (sdk >= 31) {
-      const results = await PermissionsAndroid.requestMultiple([
-        PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
-        PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
-      ]);
-    }
-
-    return await startScanIfPermissionsGranted();
+    // For any other platform
+    return false;
   } catch (error) {
     console.error(`[${TAG}] askRuntimePermissionsIfNeeded error:`, error);
     return false;
@@ -100,47 +121,46 @@ export async function checkAllPermissions() {
         console.log(`[${TAG}] Background location permission missing`);
       }
 
-      return foregroundGranted;
+      return foregroundGranted && backgroundGranted;
+    } else if (Platform.OS === "android") {
+      const sdk = parseInt(Platform.Version, 10);
+      // Android 12+
+      if (sdk >= 31) {
+        const ok = await Promise.all([
+          PermissionsAndroid.check(
+            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+          ),
+          PermissionsAndroid.check(
+            PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION
+          ),
+          PermissionsAndroid.check(
+            PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT
+          ),
+          PermissionsAndroid.check(
+            PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN
+          ),
+        ]);
+        return ok.every(Boolean);
+      }
+      // Android 10+
+      if (sdk >= 29) {
+        const ok = await Promise.all([
+          PermissionsAndroid.check(
+            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
+          ),
+          PermissionsAndroid.check(
+            PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION
+          ),
+        ]);
+        return ok.every(Boolean);
+      }
+      // Android 9 and below
+      return await PermissionsAndroid.check(
+        PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION
+      );
     }
 
-    if (Platform.OS !== "android") {
-      const fg = await Location.getForegroundPermissionsAsync();
-      const bg = await Location.getBackgroundPermissionsAsync();
-      return fg.status === "granted" && bg.status === "granted";
-    }
-    const sdk = parseInt(Platform.Version, 10);
-    // Android 12+
-    if (sdk >= 31) {
-      const ok = await Promise.all([
-        PermissionsAndroid.check(
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
-        ),
-        PermissionsAndroid.check(
-          PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION
-        ),
-        PermissionsAndroid.check(
-          PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT
-        ),
-        PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN),
-      ]);
-      return ok.every(Boolean);
-    }
-    // Android 10+
-    if (sdk >= 29) {
-      const ok = await Promise.all([
-        PermissionsAndroid.check(
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
-        ),
-        PermissionsAndroid.check(
-          PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION
-        ),
-      ]);
-      return ok.every(Boolean);
-    }
-    // Android 9 and below
-    return await PermissionsAndroid.check(
-      PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION
-    );
+    return false;
   } catch (error) {
     console.error(`[${TAG}] checkAllPermissions error:`, error);
     return false;

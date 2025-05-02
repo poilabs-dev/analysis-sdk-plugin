@@ -103,6 +103,16 @@ For iOS, you need to ensure the plugin files are properly included in your Xcode
    - PoilabsAnalysisModule.m
    - PoilabsAnalysisDelegate.swift
 
+
+## ⚠️ iOS ARM64 Warning
+
+**Note:** When developing for iOS, there's an important consideration regarding ARM64 architecture:
+
+- If you're integrating into an existing project (which already has ARM64 support), you shouldn't encounter any issues.
+- However, if you're creating a project from scratch, you need to remove the ARM64 reference from the Build Settings in Xcode. Otherwise, you might face compilation errors.
+
+This setting is particularly important when developing on M series (Apple Silicon) Mac computers.
+
 Then build and run your iOS project:
 
 ```bash
