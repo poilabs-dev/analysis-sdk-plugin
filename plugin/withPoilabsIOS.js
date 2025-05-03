@@ -119,10 +119,6 @@ function withPoilabsNativeModules(config) {
       }
 
       if (isSwiftProject) {
-        console.log(
-          "Swift project detected, configuring Swift files for Poilabs..."
-        );
-
         if (appDelegateFile && fs.existsSync(appDelegateFile)) {
           let appDelegate = fs.readFileSync(appDelegateFile, "utf8");
 
@@ -233,27 +229,16 @@ RCT_EXTERN_METHOD(updateUniqueId:(NSString *)uniqueId
           path.join(moduleDir, "PoilabsAnalysisModule.swift"),
           swiftModuleContent
         );
-        console.log(
-          `PoilabsAnalysisModule.swift oluşturuldu: ${path.join(
-            moduleDir,
-            "PoilabsAnalysisModule.swift"
-          )}`
-        );
 
         fs.writeFileSync(
           path.join(moduleDir, "PoilabsAnalysisModule.m"),
           objcModuleContent
         );
-        console.log(
-          `PoilabsAnalysisModule.m oluşturuldu: ${path.join(
-            moduleDir,
-            "PoilabsAnalysisModule.m"
-          )}`
-        );
 
         const bridgingHeaderPath = path.join(
           root,
           "ios",
+          projectName,
           `${projectName}-Bridging-Header.h`
         );
         let bridgingHeaderContent = "";
@@ -282,12 +267,7 @@ RCT_EXTERN_METHOD(updateUniqueId:(NSString *)uniqueId
         }
 
         fs.writeFileSync(bridgingHeaderPath, bridgingHeaderContent);
-        console.log(`Bridging header güncellendi: ${bridgingHeaderPath}`);
       } else {
-        console.log(
-          "Objective-C project detected, configuring Objective-C files for Poilabs..."
-        );
-
         if (appDelegateFile && fs.existsSync(appDelegateFile)) {
           let appDelegate = fs.readFileSync(appDelegateFile, "utf8");
 
@@ -332,7 +312,6 @@ RCT_EXTERN_METHOD(updateUniqueId:(NSString *)uniqueId
           if (fs.existsSync(sourcePath)) {
             const content = fs.readFileSync(sourcePath, "utf8");
             fs.writeFileSync(destPath, content, "utf8");
-            console.log(`${file} kopyalandı: ${destPath}`);
           } else {
             console.warn(`Kaynak dosya bulunamadı: ${sourcePath}`);
           }
@@ -348,23 +327,6 @@ function withPoilabsXcodeProject(config) {
   return withDangerousMod(config, [
     "ios",
     async (modConfig) => {
-      const root = modConfig.modRequest.projectRoot;
-      const projectName = modConfig.modRequest.projectName;
-
-      const pbxprojPath = path.join(
-        root,
-        "ios",
-        `${projectName}.xcodeproj`,
-        "project.pbxproj"
-      );
-
-      if (fs.existsSync(pbxprojPath)) {
-        console.log(`Xcodeproj dosyası mevcut: ${pbxprojPath}`);
-        console.log(
-          "Swift modülleri Xcode projesine eklenmeli. Plugin çalıştıktan sonra Xcode'da modülleri manuel olarak eklemeyi unutmayın."
-        );
-      }
-
       return modConfig;
     },
   ]);
