@@ -103,7 +103,8 @@ For iOS, you need to ensure the plugin files are properly included in your Xcode
 1. Open your Xcode project
 2. In Xcode, verify that the PoilabsModule files are added to your project
 3. Check that the files appear in the "Build Phases > Compile Sources" section
-4. If files are missing, you may need to manually add them from the iOS/<project-name>/PoilabsModule directory:
+4. Find + button and click. Then you should "add other".
+5. If files are missing, you may need to manually add them from the iOS/<project-name>/PoilabsModule directory:
    - PoilabsAnalysisModule.h
    - PoilabsAnalysisModule.m
 
@@ -280,25 +281,6 @@ Stops the Poilabs Analysis SDK.
 #### Returns
 
 - `boolean`: `true` if SDK was stopped successfully, `false` otherwise
-
-### `configureAnalysisSDK(options)` (Android only)
-
-Configures additional Android-specific options for the SDK.
-
-#### Parameters
-
-- `options` (Object):
-  - `enabled` (Boolean): Enable or disable the SDK
-  - `openSystemBluetooth` (Boolean): Automatically open Bluetooth
-  - `enableForegroundService` (Boolean): Enable foreground service
-  - `serviceNotificationTitle` (String): Title for foreground service notification
-  - `notificationChannelName` (String): Name for notification channel
-  - `notificationChannelDescription` (String): Description for notification channel
-  - `notificationIconResourceId` (Number): Resource ID for notification icon
-
-#### Returns
-
-- `Promise<boolean>`: Resolves to `true` if configuration was successful
 
 ### `updateUniqueId(uniqueId)`
 

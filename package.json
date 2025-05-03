@@ -1,6 +1,6 @@
 {
   "name": "@poilabs-dev/analysis-sdk-plugin",
-  "version": "1.0.42",
+  "version": "1.0.44",
   "description": "Official Expo Config Plugin for integrating the Poilabs Analysis SDK",
   "main": "index.js",
   "types": "index.d.ts",
