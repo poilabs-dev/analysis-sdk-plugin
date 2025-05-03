@@ -16,7 +16,6 @@ const ANDROID_PERMISSIONS = [
   "android.permission.FOREGROUND_SERVICE",
 ];
 
-// AndroidManifest.xml'e izinlerin eklenmesi
 function withPoilabsManifest(config) {
   return withAndroidManifest(config, (mod) => {
     const { manifest } = mod.modResults;
@@ -42,14 +41,12 @@ function withPoilabsManifest(config) {
   });
 }
 
-// build.gradle dosyalarının düzenlenmesi
 function withPoilabsGradle(config, { jitpackToken }) {
   return withDangerousMod(config, [
     "android",
     async (modConfig) => {
       const root = modConfig.modRequest.projectRoot;
 
-      // Proje seviyesi build.gradle
       const buildScript = path.join(root, "android/build.gradle");
       let text = fs.readFileSync(buildScript, "utf8");
 
@@ -120,7 +117,6 @@ function withPoilabsGradle(config, { jitpackToken }) {
   ]);
 }
 
-// Native modüllerin oluşturulması
 function withPoilabsNativeModules(config) {
   return withDangerousMod(config, [
     "android",
@@ -137,13 +133,11 @@ function withPoilabsNativeModules(config) {
 
       if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
 
-      // Kaynak dosya yolları (bu dosyaları src/android/ altında tutarsanız)
       const sourceDir = path.join(
         root,
         "node_modules/@poilabs-dev/analysis-sdk-plugin/src/android"
       );
 
-      // Dosyaları kopyala
       const moduleFiles = ["PoilabsAnalysisModule.kt", "PoilabsPackage.kt"];
 
       moduleFiles.forEach((file) => {
@@ -151,7 +145,6 @@ function withPoilabsNativeModules(config) {
         const destPath = path.join(dest, file);
 
         if (fs.existsSync(sourcePath)) {
-          // Dosya içeriğini oku, package adını değiştir ve kaydet
           let content = fs.readFileSync(sourcePath, "utf8");
           content = content.replace(/__PACKAGE_NAME__/g, pkgName);
           fs.writeFileSync(destPath, content, "utf8");
@@ -165,7 +158,6 @@ function withPoilabsNativeModules(config) {
   ]);
 }
 
-// Tüm Android işlemlerini birleştir
 function withPoilabsAndroid(config, props) {
   config = withPoilabsManifest(config);
   config = withPoilabsGradle(config, props);

@@ -91,6 +91,11 @@ After running `expo prebuild`, you need to perform these additional steps:
    npx expo run:android
    ```
 
+## ⚠️ Android local.properties Warning
+
+- You should create local.properties to android root
+- and you should add this => sdk.dir=/Users/USERNAME/Library/Android/sdk
+
 #### iOS Setup
 
 For iOS, you need to ensure the plugin files are properly included in your Xcode project:
@@ -99,10 +104,8 @@ For iOS, you need to ensure the plugin files are properly included in your Xcode
 2. In Xcode, verify that the PoilabsModule files are added to your project
 3. Check that the files appear in the "Build Phases > Compile Sources" section
 4. If files are missing, you may need to manually add them from the iOS/<project-name>/PoilabsModule directory:
-   - PoilabsAnalysisModule.swift
+   - PoilabsAnalysisModule.h
    - PoilabsAnalysisModule.m
-   - PoilabsAnalysisDelegate.swift
-
 
 ## ⚠️ iOS ARM64 Warning
 
@@ -144,16 +147,6 @@ export default function HomeScreen() {
   useEffect(() => {
     const initAnalysis = async () => {
       try {
-        // Configure for Android
-        if (Platform.OS === "android") {
-          await configureAnalysisSDK({
-            enableForegroundService: true,
-            serviceNotificationTitle: "Beacon Scanning",
-            notificationChannelName: "Beacon Scanner",
-            notificationChannelDescription: "Scanning for nearby beacons",
-          });
-        }
-
         // Start Poilabs SDK
         const success = await startPoilabsAnalysis({
           applicationId: "YOUR_APPLICATION_ID", // Get from Poilabs
