@@ -10,6 +10,13 @@ function withPoilabsInfoPlist(config) {
   return withInfoPlist(config, (mod) => {
     const plist = mod.modResults;
 
+    plist.NSLocationWhenInUseUsageDescription =
+      "We use your location to detect nearby beacons.";
+    plist.NSLocationAlwaysUsageDescription =
+      "We use your location even in the background for beacon scanning.";
+    plist.NSLocationAlwaysAndWhenInUseUsageDescription =
+      "We use your location to detect nearby beacons even in the background.";
+
     plist.NSBluetoothAlwaysUsageDescription =
       "Bluetooth is required to scan beacons nearby.";
     plist.NSBluetoothPeripheralUsageDescription =
@@ -20,11 +27,19 @@ function withPoilabsInfoPlist(config) {
 }
 
 function withPoilabsBackgroundModes(config) {
-  return withEntitlementsPlist(config, (mod) => {
-    const ent = mod.modResults;
-    const modes = ent.UIBackgroundModes || [];
-    if (!modes.includes("bluetooth-central")) modes.push("bluetooth-central");
-    ent.UIBackgroundModes = modes;
+  return withInfoPlist(config, (mod) => {
+    const plist = mod.modResults;
+    const UIBackgroundModes = plist.UIBackgroundModes || [];
+
+    if (!UIBackgroundModes.includes("bluetooth-central")) {
+      UIBackgroundModes.push("bluetooth-central");
+    }
+
+    if (!UIBackgroundModes.includes("location")) {
+      UIBackgroundModes.push("location");
+    }
+
+    plist.UIBackgroundModes = UIBackgroundModes;
     return mod;
   });
 }
@@ -40,25 +55,18 @@ function withPoilabsPodfile(config) {
       if (fs.existsSync(podfile)) {
         let podText = fs.readFileSync(podfile, "utf8");
 
+        if (!podText.includes("use_frameworks! :linkage => :static")) {
+          podText = podText.replace(
+            /platform :ios[^\n]*\n/,
+            (match) => `${match}use_frameworks! :linkage => :static\n\n`
+          );
+        }
+
         if (!podText.includes("pod 'PoilabsAnalysis'")) {
           podText = podText.replace(
             /target ['"][^'"]+['"] do/,
             (m) => `${m}\n  pod 'PoilabsAnalysis'`
           );
-        }
-
-        if (!podText.includes("use_frameworks!")) {
-          if (podText.match(/use_frameworks! :linkage =>/g)?.length === 1) {
-          } else {
-            podText = podText.replace(
-              /use_frameworks! :linkage => :static\n/g,
-              ""
-            );
-            podText = podText.replace(
-              /use_react_native!\(/,
-              `use_frameworks! :linkage => :static\n\n  use_react_native!(`
-            );
-          }
         }
 
         fs.writeFileSync(podfile, podText);
@@ -74,121 +82,264 @@ function withPoilabsNativeModules(config) {
     async (modConfig) => {
       const root = modConfig.modRequest.projectRoot;
       const projectName = modConfig.modRequest.projectName;
-      const modulesDir = path.join(root, "ios", projectName, "PoilabsModule");
 
-      if (!fs.existsSync(modulesDir)) {
-        fs.mkdirSync(modulesDir, { recursive: true });
-      }
-
-      const sourceDir = path.join(
-        root,
-        "node_modules/@poilabs-dev/analysis-sdk-plugin/src/ios"
-      );
-
-      const moduleFiles = [
-        "PoilabsAnalysisModule.swift",
-        "PoilabsAnalysisModule.m",
-        "PoilabsAnalysisDelegate.swift",
-      ];
-
-      moduleFiles.forEach((file) => {
-        const sourcePath = path.join(sourceDir, file);
-        const destPath = path.join(modulesDir, file);
-
-        if (fs.existsSync(sourcePath)) {
-          fs.copyFileSync(sourcePath, destPath);
-        } else {
-          console.warn(`Source file not found: ${sourcePath}`);
-        }
-      });
-
-      const bridgingHeaderPath = path.join(
+      const appDelegateSwiftFile = path.join(
         root,
         "ios",
         projectName,
-        `${projectName}-Bridging-Header.h`
+        "AppDelegate.swift"
       );
 
-      const bridgingHeaderContent = `
-#import <React/RCTBridgeModule.h>
-#import <React/RCTEventEmitter.h>
-`;
-
-      if (!fs.existsSync(bridgingHeaderPath)) {
-        fs.writeFileSync(bridgingHeaderPath, bridgingHeaderContent);
-      } else {
-        let bridgingHeader = fs.readFileSync(bridgingHeaderPath, "utf8");
-        if (!bridgingHeader.includes("#import <React/RCTBridgeModule.h>")) {
-          bridgingHeader += "\n#import <React/RCTBridgeModule.h>";
-          fs.writeFileSync(bridgingHeaderPath, bridgingHeader);
-        }
-      }
-
-      const pbxprojPath = path.join(
-        root,
-        "ios",
-        `${projectName}.xcodeproj`,
-        "project.pbxproj"
-      );
-
-      if (fs.existsSync(pbxprojPath)) {
-        let pbxproj = fs.readFileSync(pbxprojPath, "utf8");
-
-        if (!pbxproj.includes("SWIFT_OBJC_BRIDGING_HEADER")) {
-          const buildConfigurationBlockRegex =
-            /\/\* Debug \*\/ = {[\s\S]*?buildSettings = {([\s\S]*?)};/g;
-          let match;
-          let updated = false;
-
-          while (
-            (match = buildConfigurationBlockRegex.exec(pbxproj)) !== null
-          ) {
-            const bridgingHeaderSetting = `\n\t\t\t\tSWIFT_OBJC_BRIDGING_HEADER = "${projectName}/${projectName}-Bridging-Header.h";`;
-
-            if (!match[1].includes("SWIFT_OBJC_BRIDGING_HEADER")) {
-              const updatedBuildSettings = match[1] + bridgingHeaderSetting;
-              pbxproj = pbxproj.replace(match[1], updatedBuildSettings);
-              updated = true;
-            }
-          }
-
-          if (updated) {
-            fs.writeFileSync(pbxprojPath, pbxproj);
-          }
-        }
-      }
-
-      // AppDelegate güncelleme
-      const appDelegateFile = path.join(
+      const appDelegateMMFile = path.join(
         root,
         "ios",
         projectName,
         "AppDelegate.mm"
       );
 
-      if (fs.existsSync(appDelegateFile)) {
-        let appDelegate = fs.readFileSync(appDelegateFile, "utf8");
+      const appDelegateMFile = path.join(
+        root,
+        "ios",
+        projectName,
+        "AppDelegate.m"
+      );
+
+      const isSwiftProject = fs.existsSync(appDelegateSwiftFile);
+      const appDelegateFile = isSwiftProject
+        ? appDelegateSwiftFile
+        : fs.existsSync(appDelegateMMFile)
+        ? appDelegateMMFile
+        : fs.existsSync(appDelegateMFile)
+        ? appDelegateMFile
+        : null;
+
+      const moduleDir = path.join(root, "ios", projectName, "PoilabsModule");
+      if (!fs.existsSync(moduleDir)) {
+        fs.mkdirSync(moduleDir, { recursive: true });
+      }
+
+      if (isSwiftProject) {
+        console.log(
+          "Swift project detected, configuring Swift files for Poilabs..."
+        );
+
+        if (appDelegateFile && fs.existsSync(appDelegateFile)) {
+          let appDelegate = fs.readFileSync(appDelegateFile, "utf8");
+
+          if (!appDelegate.includes("import PoilabsAnalysis")) {
+            const importMatch = appDelegate.match(/^import.*$/gm);
+            if (importMatch && importMatch.length > 0) {
+              const lastImport = importMatch[importMatch.length - 1];
+              appDelegate = appDelegate.replace(
+                lastImport,
+                `${lastImport}\nimport PoilabsAnalysis`
+              );
+            }
+          }
+
+          if (!appDelegate.includes("PLSuspendedAnalysisManager")) {
+            const pattern1 =
+              /func application\(\s*_\s*application:\s*UIApplication,\s*didFinishLaunchingWithOptions\s*launchOptions:\s*\[UIApplication\.LaunchOptionsKey:\s*Any\]\?\s*\)\s*->\s*Bool\s*{/;
+
+            const pattern2 =
+              /public override func application\(\s*_\s*application:\s*UIApplication,\s*didFinishLaunchingWithOptions\s*launchOptions:\s*\[UIApplication\.LaunchOptionsKey:\s*Any\]\?\s*\)\s*->\s*Bool\s*{/;
+
+            const replacement = `$&\n
+  if let options = launchOptions, options[UIApplication.LaunchOptionsKey.location] != nil {
+    if application.applicationState == .background {
+      PLSuspendedAnalysisManager.sharedInstance()?.startBeaconMonitoring()
+    }
+  }`;
+
+            if (pattern1.test(appDelegate)) {
+              appDelegate = appDelegate.replace(pattern1, replacement);
+            } else if (pattern2.test(appDelegate)) {
+              appDelegate = appDelegate.replace(pattern2, replacement);
+            }
+          }
+
+          fs.writeFileSync(appDelegateFile, appDelegate);
+        }
+
+        const swiftModuleContent = `
+import Foundation
+import PoilabsAnalysis
+
+@objc(PoilabsAnalysisModule)
+class PoilabsAnalysisModule: NSObject, PLAnalysisManagerDelegate {
+    
+    @objc
+    static func requiresMainQueueSetup() -> Bool {
+        return false
+    }
+    
+    @objc
+    func startPoilabsAnalysis(_ applicationId: String, applicationSecret: String, uniqueIdentifier: String, resolver: @escaping RCTPromiseResolveBlock, rejecter: @escaping RCTPromiseRejectBlock) -> Void {
+        PLAnalysisSettings.sharedInstance().applicationId = applicationId
+        PLAnalysisSettings.sharedInstance().applicationSecret = applicationSecret
+        PLAnalysisSettings.sharedInstance().analysisUniqueIdentifier = uniqueIdentifier
+        
+        PLConfigManager.sharedInstance().getReadyForTracking { error in
+            if let error = error {
+                print("Poilabs Error: \\(error)")
+                resolver(false)
+            } else {
+                print("Poilabs SDK initialized successfully")
+                PLSuspendedAnalysisManager.sharedInstance()?.stopBeaconMonitoring()
+                PLStandardAnalysisManager.sharedInstance()?.startBeaconMonitoring()
+                PLStandardAnalysisManager.sharedInstance()?.delegate = self
+                resolver(true)
+            }
+        }
+    }
+    
+    @objc
+    func stopPoilabsAnalysis(_ resolver: @escaping RCTPromiseResolveBlock, rejecter: @escaping RCTPromiseRejectBlock) -> Void {
+        PLAnalysisSettings.sharedInstance()?.closeAllActions()
+        resolver(true)
+    }
+    
+    @objc
+    func updateUniqueId(_ uniqueId: String, resolver: @escaping RCTPromiseResolveBlock, rejecter: @escaping RCTPromiseRejectBlock) -> Void {
+        PLAnalysisSettings.sharedInstance()?.analysisUniqueIdentifier = uniqueId
+        resolver(true)
+    }
+    
+    func analysisManagerDidFail(withPoiError error: PLError!) {
+        print("Poilabs Error: \\(error!)")
+    }
+    
+    func analysisManagerResponse(forBeaconMonitoring response: [AnyHashable : Any]!) {
+        print("Poilabs Response: \\(response!)")
+    }
+}
+`;
+
+        const objcModuleContent = `
+#import <React/RCTBridgeModule.h>
+
+@interface RCT_EXTERN_MODULE(PoilabsAnalysisModule, NSObject)
+
+RCT_EXTERN_METHOD(startPoilabsAnalysis:(NSString *)applicationId
+                  applicationSecret:(NSString *)applicationSecret
+                  uniqueIdentifier:(NSString *)uniqueIdentifier
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(stopPoilabsAnalysis:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+
+RCT_EXTERN_METHOD(updateUniqueId:(NSString *)uniqueId
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+
+@end
+`;
+
+        fs.writeFileSync(
+          path.join(moduleDir, "PoilabsAnalysisModule.swift"),
+          swiftModuleContent
+        );
+        console.log(
+          `PoilabsAnalysisModule.swift oluşturuldu: ${path.join(
+            moduleDir,
+            "PoilabsAnalysisModule.swift"
+          )}`
+        );
+
+        fs.writeFileSync(
+          path.join(moduleDir, "PoilabsAnalysisModule.m"),
+          objcModuleContent
+        );
+        console.log(
+          `PoilabsAnalysisModule.m oluşturuldu: ${path.join(
+            moduleDir,
+            "PoilabsAnalysisModule.m"
+          )}`
+        );
+
+        const bridgingHeaderPath = path.join(
+          root,
+          "ios",
+          `${projectName}-Bridging-Header.h`
+        );
+        let bridgingHeaderContent = "";
+
+        if (fs.existsSync(bridgingHeaderPath)) {
+          bridgingHeaderContent = fs.readFileSync(bridgingHeaderPath, "utf8");
+        }
 
         if (
-          !appDelegate.includes("#import <PoilabsAnalysis/PoilabsAnalysis.h>")
+          !bridgingHeaderContent.includes(
+            "#import <PoilabsAnalysis/PoilabsAnalysis.h>"
+          )
         ) {
-          appDelegate = appDelegate.replace(
-            /#import "AppDelegate.h"/,
-            `#import "AppDelegate.h"\n#import <PoilabsAnalysis/PoilabsAnalysis.h>`
-          );
+          bridgingHeaderContent +=
+            "\n#import <PoilabsAnalysis/PoilabsAnalysis.h>\n";
         }
 
-        if (!appDelegate.includes("PLSuspendedAnalysisManager")) {
-          appDelegate = appDelegate.replace(
-            /- \(BOOL\)application:\(UIApplication \*\)application didFinishLaunchingWithOptions:\(NSDictionary \*\)launchOptions\s*{/,
-            `- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-  if (application.applicationState == UIApplicationStateBackground) {
-    [[PLSuspendedAnalysisManager sharedInstance] startBeaconMonitoring];
+        if (
+          !bridgingHeaderContent.includes("#import <React/RCTBridgeModule.h>")
+        ) {
+          bridgingHeaderContent += "\n#import <React/RCTBridgeModule.h>\n";
+        }
+
+        fs.writeFileSync(bridgingHeaderPath, bridgingHeaderContent);
+        console.log(`Bridging header güncellendi: ${bridgingHeaderPath}`);
+      } else {
+        console.log(
+          "Objective-C project detected, configuring Objective-C files for Poilabs..."
+        );
+
+        if (appDelegateFile && fs.existsSync(appDelegateFile)) {
+          let appDelegate = fs.readFileSync(appDelegateFile, "utf8");
+
+          if (
+            !appDelegate.includes("#import <PoilabsAnalysis/PoilabsAnalysis.h>")
+          ) {
+            appDelegate = appDelegate.replace(
+              /#import "AppDelegate.h"/,
+              `#import "AppDelegate.h"\n#import <PoilabsAnalysis/PoilabsAnalysis.h>`
+            );
+          }
+
+          if (!appDelegate.includes("PLSuspendedAnalysisManager")) {
+            appDelegate = appDelegate.replace(
+              /- \(BOOL\)application:\(UIApplication \*\)application didFinishLaunchingWithOptions:\(NSDictionary \*\)launchOptions\s*{/,
+              `- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
+  if (launchOptions[UIApplicationLaunchOptionsLocationKey]) {
+    if (application.applicationState == UIApplicationStateBackground) {
+      [[PLSuspendedAnalysisManager sharedInstance] startBeaconMonitoring];
+    }
   }`
-          );
+            );
+          }
+
+          fs.writeFileSync(appDelegateFile, appDelegate);
         }
 
-        fs.writeFileSync(appDelegateFile, appDelegate);
+        const sourceDir = path.join(
+          root,
+          "node_modules/@poilabs-dev/analysis-sdk-plugin/src/ios"
+        );
+
+        const moduleFiles = [
+          "PoilabsAnalysisModule.h",
+          "PoilabsAnalysisModule.m",
+        ];
+
+        moduleFiles.forEach((file) => {
+          const sourcePath = path.join(sourceDir, file);
+          const destPath = path.join(moduleDir, file);
+
+          if (fs.existsSync(sourcePath)) {
+            const content = fs.readFileSync(sourcePath, "utf8");
+            fs.writeFileSync(destPath, content, "utf8");
+            console.log(`${file} kopyalandı: ${destPath}`);
+          } else {
+            console.warn(`Kaynak dosya bulunamadı: ${sourcePath}`);
+          }
+        });
       }
 
       return modConfig;
