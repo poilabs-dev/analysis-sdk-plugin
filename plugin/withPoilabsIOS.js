@@ -164,6 +164,7 @@ function withPoilabsNativeModules(config) {
         const swiftModuleContent = `
 import Foundation
 import PoilabsAnalysis
+import React
 
 @objc(PoilabsAnalysisModule)
 class PoilabsAnalysisModule: NSObject, PLAnalysisManagerDelegate {
@@ -179,9 +180,9 @@ class PoilabsAnalysisModule: NSObject, PLAnalysisManagerDelegate {
         PLAnalysisSettings.sharedInstance().applicationSecret = applicationSecret
         PLAnalysisSettings.sharedInstance().analysisUniqueIdentifier = uniqueIdentifier
         
-        PLConfigManager.sharedInstance().getReadyForTracking { error in
-            if let error = error {
-                print("Poilabs Error: \\(error)")
+        PLConfigManager.sharedInstance().getReadyForTracking { [weak self] error in
+            if error != nil {
+                print("Poilabs Error: \\(error!)")
                 resolver(false)
             } else {
                 print("Poilabs SDK initialized successfully")
@@ -203,14 +204,6 @@ class PoilabsAnalysisModule: NSObject, PLAnalysisManagerDelegate {
     func updateUniqueId(_ uniqueId: String, resolver: @escaping RCTPromiseResolveBlock, rejecter: @escaping RCTPromiseRejectBlock) -> Void {
         PLAnalysisSettings.sharedInstance()?.analysisUniqueIdentifier = uniqueId
         resolver(true)
-    }
-    
-    func analysisManagerDidFail(withPoiError error: PLError!) {
-        print("Poilabs Error: \\(error!)")
-    }
-    
-    func analysisManagerResponse(forBeaconMonitoring response: [AnyHashable : Any]!) {
-        print("Poilabs Response: \\(response!)")
     }
 }
 `;
@@ -284,6 +277,10 @@ RCT_EXTERN_METHOD(updateUniqueId:(NSString *)uniqueId
           bridgingHeaderContent += "\n#import <React/RCTBridgeModule.h>\n";
         }
 
+        if (!bridgingHeaderContent.includes("#import <React/RCTUtils.h>")) {
+          bridgingHeaderContent += "\n#import <React/RCTUtils.h>\n";
+        }
+
         fs.writeFileSync(bridgingHeaderPath, bridgingHeaderContent);
         console.log(`Bridging header güncellendi: ${bridgingHeaderPath}`);
       } else {
@@ -347,11 +344,38 @@ RCT_EXTERN_METHOD(updateUniqueId:(NSString *)uniqueId
   ]);
 }
 
+function withPoilabsXcodeProject(config) {
+  return withDangerousMod(config, [
+    "ios",
+    async (modConfig) => {
+      const root = modConfig.modRequest.projectRoot;
+      const projectName = modConfig.modRequest.projectName;
+
+      const pbxprojPath = path.join(
+        root,
+        "ios",
+        `${projectName}.xcodeproj`,
+        "project.pbxproj"
+      );
+
+      if (fs.existsSync(pbxprojPath)) {
+        console.log(`Xcodeproj dosyası mevcut: ${pbxprojPath}`);
+        console.log(
+          "Swift modülleri Xcode projesine eklenmeli. Plugin çalıştıktan sonra Xcode'da modülleri manuel olarak eklemeyi unutmayın."
+        );
+      }
+
+      return modConfig;
+    },
+  ]);
+}
+
 function withPoilabsIOS(config) {
   config = withPoilabsInfoPlist(config);
   config = withPoilabsBackgroundModes(config);
   config = withPoilabsPodfile(config);
   config = withPoilabsNativeModules(config);
+  config = withPoilabsXcodeProject(config);
   return config;
 }
 
