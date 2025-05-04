@@ -108,6 +108,11 @@ For iOS, you need to ensure the plugin files are properly included in your Xcode
    - PoilabsAnalysisModule.h
    - PoilabsAnalysisModule.m
 
+## Pods Setup
+- cd ios
+- pod deintegrate
+- pod install --repo-update
+
 ## ⚠️ iOS ARM64 Warning
 
 **Note:** When developing for iOS, there's an important consideration regarding ARM64 architecture:
