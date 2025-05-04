@@ -20,21 +20,23 @@ class PoilabsAnalysisModule(
     override fun getName(): String = "PoilabsAnalysisModule"
 
     @ReactMethod
-    fun startPoilabsAnalysis(appId: String, appSecret: String, uniqueId: String) {
-        this.applicationId = appId
-        this.applicationSecret = appSecret
-        this.uniqueIdentifier = uniqueId
-
-        currentActivity?.let { activity ->
+    fun startPoilabsAnalysis(
+        appId: String,
+        appSecret: String,
+        uniqueId: String,
+        promise: Promise
+    ) {
+        try {
             val config = PoiAnalysisConfig(appId, appSecret, uniqueId)
             config.setEnabled(true)
-            config.setForegroundServiceIntent(Intent(activity, activity::class.java))
-            config.enableForegroundService()
 
-            PoiAnalysis.getInstance(activity.applicationContext, config)
+            PoiAnalysis.getInstance(reactContext, config)
             PoiAnalysis.getInstance().setPoiResponseListener(this)
             PoiAnalysis.getInstance().enable()
-            PoiAnalysis.getInstance().startScan(activity.applicationContext)
+            PoiAnalysis.getInstance().startScan(reactContext)
+            promise.resolve(true)
+        } catch (e: Exception) {
+            promise.reject("START_ERROR", e.localizedMessage)
         }
     }
 
