@@ -135,14 +135,13 @@ After the prebuild process, you can use the SDK in your application:
 ```javascript
 import { Image } from "expo-image";
 import { useEffect, useState } from "react";
-import { Platform, StyleSheet } from "react-native";
+import { StyleSheet, TouchableOpacity } from "react-native";
 
 import { HelloWave } from "@/components/HelloWave";
 import ParallaxScrollView from "@/components/ParallaxScrollView";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import {
-  configureAnalysisSDK,
   startPoilabsAnalysis,
   stopPoilabsAnalysis,
 } from "@poilabs-dev/analysis-sdk-plugin";
@@ -169,11 +168,18 @@ export default function HomeScreen() {
     };
 
     initAnalysis();
-
-    return () => {
-      stopPoilabsAnalysis();
-    };
   }, []);
+
+  const handleStopSDK = () => {
+    try {
+      const result = stopPoilabsAnalysis();
+      setSdkStatus(result ? "Stopped ⛔" : "Failed to stop ❓");
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      setSdkStatus("Stop Error: " + errorMessage);
+    }
+  };
 
   return (
     <ParallaxScrollView
@@ -193,44 +199,11 @@ export default function HomeScreen() {
       {/* SDK Status Indicator */}
       <ThemedView style={styles.sdkStatusContainer}>
         <ThemedText type="subtitle">Poilabs SDK: {sdkStatus}</ThemedText>
-      </ThemedView>
 
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit{" "}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText>{" "}
-          to see changes. Press{" "}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: "cmd + d",
-              android: "cmd + m",
-              web: "F12",
-            })}
-          </ThemedText>{" "}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">
-            npm run reset-project
-          </ThemedText> to get a fresh <ThemedText type="defaultSemiBold">
-            app
-          </ThemedText> directory. This will move the current <ThemedText type="defaultSemiBold">
-            app
-          </ThemedText> to <ThemedText type="defaultSemiBold">
-            app-example
-          </ThemedText>.
-        </ThemedText>
+        {/* Stop SDK Button */}
+        <TouchableOpacity style={styles.stopButton} onPress={handleStopSDK}>
+          <ThemedText style={styles.buttonText}>STOP SDK</ThemedText>
+        </TouchableOpacity>
       </ThemedView>
     </ParallaxScrollView>
   );
@@ -241,10 +214,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
   },
   reactLogo: {
     height: 178,
@@ -258,6 +227,18 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 8,
     backgroundColor: "#f5f5f5",
+    alignItems: "center",
+  },
+  stopButton: {
+    marginTop: 10,
+    backgroundColor: "#FF3B30",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+  },
+  buttonText: {
+    color: "white",
+    fontWeight: "bold",
   },
 });
 ```
