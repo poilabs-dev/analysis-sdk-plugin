@@ -1,8 +1,4 @@
-const {
-  withInfoPlist,
-  withDangerousMod,
-  withEntitlementsPlist,
-} = require("@expo/config-plugins");
+const { withInfoPlist, withDangerousMod } = require("@expo/config-plugins");
 const fs = require("fs");
 const path = require("path");
 
@@ -134,23 +130,58 @@ function withPoilabsNativeModules(config) {
           }
 
           if (!appDelegate.includes("PLSuspendedAnalysisManager")) {
-            const pattern1 =
-              /func application\(\s*_\s*application:\s*UIApplication,\s*didFinishLaunchingWithOptions\s*launchOptions:\s*\[UIApplication\.LaunchOptionsKey:\s*Any\]\?\s*\)\s*->\s*Bool\s*{/;
+            const returnRegex =
+              /return\s+super\.application\s*\(\s*application\s*,\s*didFinishLaunchingWithOptions\s*:\s*launchOptions\s*\)/;
 
-            const pattern2 =
-              /public override func application\(\s*_\s*application:\s*UIApplication,\s*didFinishLaunchingWithOptions\s*launchOptions:\s*\[UIApplication\.LaunchOptionsKey:\s*Any\]\?\s*\)\s*->\s*Bool\s*{/;
-
-            const replacement = `$&\n
+            if (returnRegex.test(appDelegate)) {
+              const poilabsCode = `
   if let options = launchOptions, options[UIApplication.LaunchOptionsKey.location] != nil {
     if application.applicationState == .background {
       PLSuspendedAnalysisManager.sharedInstance()?.startBeaconMonitoring()
     }
-  }`;
+  }
+    `;
+              appDelegate = appDelegate.replace(
+                returnRegex,
+                `${poilabsCode}return super.application(application, didFinishLaunchingWithOptions: launchOptions)`
+              );
+            } else {
+              const appDelegatePattern =
+                /public\s+override\s+func\s+application\s*\(\s*_\s+application\s*:\s*UIApplication\s*,\s*didFinishLaunchingWithOptions\s+launchOptions\s*:.*?\)\s*->\s*Bool\s*\{/s;
 
-            if (pattern1.test(appDelegate)) {
-              appDelegate = appDelegate.replace(pattern1, replacement);
-            } else if (pattern2.test(appDelegate)) {
-              appDelegate = appDelegate.replace(pattern2, replacement);
+              if (appDelegatePattern.test(appDelegate)) {
+                const match = appDelegatePattern.exec(appDelegate);
+                if (match) {
+                  const methodStart = match.index + match[0].length;
+                  let openBraces = 1;
+                  let closeBraces = 0;
+                  let endIndex = methodStart;
+
+                  for (let i = methodStart; i < appDelegate.length; i++) {
+                    if (appDelegate[i] === "{") openBraces++;
+                    if (appDelegate[i] === "}") closeBraces++;
+
+                    if (openBraces === closeBraces + 1) {
+                      endIndex = i;
+                      break;
+                    }
+                  }
+
+                  if (endIndex > methodStart) {
+                    const poilabsCode = `
+  if let options = launchOptions, options[UIApplication.LaunchOptionsKey.location] != nil {
+    if application.applicationState == .background {
+      PLSuspendedAnalysisManager.sharedInstance()?.startBeaconMonitoring()
+    }
+  }
+    `;
+                    appDelegate =
+                      appDelegate.substring(0, endIndex) +
+                      poilabsCode +
+                      appDelegate.substring(endIndex);
+                  }
+                }
+              }
             }
           }
 

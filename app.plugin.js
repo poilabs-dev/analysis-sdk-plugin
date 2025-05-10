@@ -3,7 +3,7 @@ const withPoilabsSDK = require("./plugin");
 
 const pkg = {
   name: "@poilabs-dev/analysis-sdk-plugin",
-  version: "1.0.46",
+  version: "1.0.65",
 };
 
 module.exports = createRunOncePlugin(
