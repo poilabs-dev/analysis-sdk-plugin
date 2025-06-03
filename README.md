@@ -66,13 +66,7 @@ After running `expo prebuild`, you need to perform these additional steps:
 
 #### Android Setup
 
-1. Open your project's `MainApplication.kt` file and add the following import:
-
-   ```kotlin
-   import com.anonymous.<APPNAME>.PoilabsPackage
-   ```
-
-2. Find the `getPackages()` method and add the PoilabsPackage:
+1. Find the `getPackages()` method and add the PoilabsPackage:
 
    ```kotlin
    override fun getPackages(): List<ReactPackage> {
@@ -83,7 +77,7 @@ After running `expo prebuild`, you need to perform these additional steps:
     }
    ```
 
-3. Clean and rebuild your Android project:
+2. Clean and rebuild your Android project:
    ```bash
    cd android
    ./gradlew clean

@@ -8,6 +8,11 @@ import getpoi.com.poibeaconsdk.PoiAnalysis
 import getpoi.com.poibeaconsdk.models.PoiAnalysisConfig
 import getpoi.com.poibeaconsdk.models.PoiResponseCallback
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.content.ContextCompat
+
 class PoilabsAnalysisModule(
     reactContext: ReactApplicationContext
 ) : ReactContextBaseJavaModule(reactContext), PoiResponseCallback {
@@ -57,7 +62,14 @@ class PoilabsAnalysisModule(
                 poiAnalysisConfig.setEnabled(options.getBoolean("enabled"))
             }
             if (options.hasKey("openSystemBluetooth")) {
-                poiAnalysisConfig.setOpenSystemBluetooth(options.getBoolean("openSystemBluetooth"))
+                val openBluetooth = options.getBoolean("openSystemBluetooth")
+
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || 
+                    ContextCompat.checkSelfPermission(reactContext, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
+                ) {
+                    @Suppress("DEPRECATION")
+                    poiAnalysisConfig.setOpenSystemBluetooth(openBluetooth)
+                }
             }
             if (options.hasKey("enableForegroundService") && options.getBoolean("enableForegroundService")) {
                 poiAnalysisConfig.enableForegroundService()

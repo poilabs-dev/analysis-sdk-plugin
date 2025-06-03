@@ -1,6 +1,7 @@
 const {
   withAndroidManifest,
   withDangerousMod,
+  withAppBuildGradle,
 } = require("@expo/config-plugins");
 const fs = require("fs");
 const path = require("path");
@@ -85,7 +86,6 @@ function withPoilabsGradle(config, { jitpackToken }) {
 
       fs.writeFileSync(buildScript, text);
 
-      // Uygulama seviyesi build.gradle
       const appGradle = path.join(root, "android/app/build.gradle");
       let appText = fs.readFileSync(appGradle, "utf8");
 
@@ -107,7 +107,7 @@ function withPoilabsGradle(config, { jitpackToken }) {
         appText = appText.replace(
           /dependencies\s*{[^}]*\n/,
           (m) =>
-            `${m}    implementation 'com.github.poiteam:Android-Analysis-SDK:v3.11.4'\n`
+            `${m}    implementation('com.github.poiteam:Android-Analysis-SDK:v3.11.4') {\n        exclude group: 'com.android.support'\n    }\n`
         );
       }
 
@@ -158,10 +158,31 @@ function withPoilabsNativeModules(config) {
   ]);
 }
 
+const withPoilabsGradleMods = (config) => {
+  return withAppBuildGradle(config, (config) => {
+    config.modResults.contents = config.modResults.contents.replace(
+      /implementation\s+['"]com\.github\.poiteam:Android-Navigation-SDK:4\.4\.1['"]/,
+      `implementation('com.github.poiteam:Android-Navigation-SDK:4.4.1') {
+          exclude group: 'com.android.support'
+      }`
+    );
+
+    config.modResults.contents = config.modResults.contents.replace(
+      /implementation\s+['"]com\.github\.poiteam:Android-Analysis-SDK:v3\.11\.4['"]/,
+      `implementation('com.github.poiteam:Android-Analysis-SDK:v3.11.4') {
+          exclude group: 'com.android.support'
+      }`
+    );
+
+    return config;
+  });
+};
+
 function withPoilabsAndroid(config, props) {
   config = withPoilabsManifest(config);
   config = withPoilabsGradle(config, props);
   config = withPoilabsNativeModules(config);
+  config = withPoilabsGradleMods(config);
   return config;
 }
 
